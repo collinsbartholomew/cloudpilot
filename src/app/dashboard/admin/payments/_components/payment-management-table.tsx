@@ -1,0 +1,234 @@
+"use client";
+
+import { type ComponentProps, type ReactNode, useCallback } from "react";
+import { Badge } from "@/components/ui/badge";
+import { ExternalLink } from "lucide-react";
+import { AdminTableBase } from "@/components/admin/admin-table-base";
+import { UserAvatarCell } from "@/components/admin/user-avatar-cell";
+import { PaymentWithUser } from "@/types/billing";
+import { useAdminTable } from "@/hooks/use-admin-table";
+import { Button } from "@/components/ui/button";
+import { getPayments } from "@/lib/actions/admin";
+import { useIntlLocale } from "@/hooks/use-intl-locale";
+
+interface PaymentManagementTableProps {
+  initialData: PaymentWithUser[];
+  initialPagination: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+  };
+}
+
+type BadgeVariant = ComponentProps<typeof Badge>["variant"];
+const STATUS_BADGE_VARIANT_MAP: Record<string, BadgeVariant> = {
+  succeeded: "secondary",
+  pending: "outline",
+  failed: "destructive",
+  canceled: "outline",
+};
+
+const getStatusBadgeVariant = (status: string) => {
+  return STATUS_BADGE_VARIANT_MAP[status] ?? "secondary";
+};
+
+const formatCurrency = (amount: number, currency: string, locale: string) => {
+  return new Intl.NumberFormat(locale, {
+    style: "currency",
+    currency: currency.toUpperCase(),
+  }).format(amount / 100);
+};
+
+const formatDate = (dateString: string | Date, locale: string) => {
+  return new Date(dateString).toLocaleDateString(locale, {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+};
+
+const openProviderPayment = (paymentId: string) => {
+  window.open(`https://www.creem.io/dashboard/payments/${paymentId}`, "_blank");
+};
+
+function PaymentStatusLabel({ status }: { status: string }) {
+  switch (status) {
+    case "succeeded":
+      return <>Succeeded</>;
+    case "pending":
+      return <>Pending</>;
+    case "failed":
+      return <>Failed</>;
+    case "canceled":
+      return <>Canceled</>;
+    default:
+      return <>Unknown</>;
+  }
+}
+
+function PaymentMethodLabel({ paymentType }: { paymentType: string }) {
+  switch (paymentType) {
+    case "subscription":
+      return <>Subscription</>;
+    case "one_time":
+      return <>One-time Payment</>;
+    case "card":
+      return <>Credit Card</>;
+    case "bank_transfer":
+      return <>Bank Transfer</>;
+    case "paypal":
+      return <>PayPal</>;
+    default:
+      return <>Unknown</>;
+  }
+}
+
+const createColumns = (
+  locale: string,
+): Array<{
+  key: keyof PaymentWithUser | string;
+  label: ReactNode;
+  render?: (item: PaymentWithUser) => ReactNode;
+}> => [
+  {
+    key: "user",
+    label: <>User</>,
+    render: (payment) => (
+      <UserAvatarCell
+        name={payment.user?.name}
+        email={payment.user?.email}
+        image={payment.user?.image}
+      />
+    ),
+  },
+  {
+    key: "amount",
+    label: <>Amount</>,
+    render: (payment) => (
+      <div className="font-medium">
+        {formatCurrency(payment.amount, payment.currency, locale)}
+      </div>
+    ),
+  },
+  {
+    key: "status",
+    label: <>Status</>,
+    render: (payment) => (
+      <Badge
+        variant={getStatusBadgeVariant(payment.status)}
+        className="capitalize"
+      >
+        <PaymentStatusLabel status={payment.status} />
+      </Badge>
+    ),
+  },
+  {
+    key: "method",
+    label: <>Method</>,
+    render: (payment) => (
+      <div className="text-sm">
+        <PaymentMethodLabel paymentType={payment.paymentType} />
+      </div>
+    ),
+  },
+  {
+    key: "created",
+    label: <>Created</>,
+    render: (payment) => formatDate(payment.createdAt, locale),
+  },
+  {
+    key: "actions",
+    label: <>Actions</>,
+    render: (payment) => (
+      <Button
+        variant="ghost"
+        size="sm"
+        onClick={() => openProviderPayment(payment.paymentId)}
+        title="View in Creem Dashboard"
+      >
+        <ExternalLink className="h-4 w-4" />
+      </Button>
+    ),
+  },
+];
+
+const statusFilterOptions = [
+  { value: "all", label: <>All Statuses</> },
+  { value: "succeeded", label: <>Succeeded</> },
+  { value: "pending", label: <>Pending</> },
+  { value: "failed", label: <>Failed</> },
+  { value: "canceled", label: <>Canceled</> },
+];
+
+export function PaymentManagementTable({
+  initialData,
+  initialPagination,
+}: PaymentManagementTableProps) {
+  const intlLocale = useIntlLocale();
+  // FIX: Wrap queryAction with useCallback
+  const queryPayments = useCallback(
+    async ({
+      page,
+      limit,
+      search,
+      filter,
+    }: {
+      page: number;
+      limit: number;
+      search?: string;
+      filter?: string;
+    }) =>
+      getPayments({
+        page,
+        limit,
+        search,
+        status: filter as
+          | "succeeded"
+          | "failed"
+          | "pending"
+          | "canceled"
+          | "all",
+      }),
+    [],
+  );
+
+  const {
+    data: payments,
+    loading,
+    error,
+    pagination,
+    searchTerm,
+    filter: statusFilter,
+    setSearchTerm: handleSearch,
+    setFilter: handleStatusFilter,
+    setCurrentPage: handlePageChange,
+  } = useAdminTable<PaymentWithUser>({
+    queryAction: queryPayments, // Use the wrapped function
+    initialData,
+    initialPagination,
+  });
+
+  const columns = createColumns(intlLocale);
+
+  return (
+    <AdminTableBase<PaymentWithUser>
+      data={payments}
+      columns={columns}
+      loading={loading}
+      error={error}
+      searchTerm={searchTerm}
+      onSearchChange={handleSearch}
+      searchPlaceholder={<>Search by user name, email, or payment ID...</>}
+      filterValue={statusFilter}
+      onFilterChange={handleStatusFilter}
+      filterOptions={statusFilterOptions}
+      filterPlaceholder={<>Filter by status</>}
+      pagination={pagination}
+      onPageChange={handlePageChange}
+      emptyMessage={<>No payments found</>}
+    />
+  );
+}

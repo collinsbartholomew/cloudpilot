@@ -18,5 +18,8 @@
   ],
   "bin": {
     "saas-cli": "./src/index.ts"
+  },
+  "scripts": {
+    "update": "npx npm-check-updates@latest -u"
   }
 }

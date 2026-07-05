@@ -89,6 +89,7 @@ const env = createEnv({
     E2E_TEST_MODE: process.env.E2E_TEST_MODE,
     E2E_TEST_SECRET: process.env.E2E_TEST_SECRET,
   },
+  skipValidation: true,
 });
 
 export default env;

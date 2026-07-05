@@ -165,7 +165,8 @@
       "esbuild",
       "sharp",
       "unrs-resolver"
-    ]
+    ],
+    "dangerouslyAllowAllBuilds": true
   },
   "packageManager": "pnpm@11.3.0"
 }

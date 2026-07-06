@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
-import { Loader2, Github } from "lucide-react";
+import { Loader2, GitHub } from "lucide-react";
 import { signIn } from "@/lib/auth/client";
 import { redirectBrowserTo } from "@/lib/browser-redirect";
 import { buildLoginRedirectPath } from "@/lib/auth/callback-url";
@@ -35,7 +35,7 @@ const socialProviders = {
   },
   github: {
     name: "GitHub",
-    icon: Github,
+    icon: GitHub,
   },
   linkedin: {
     name: "LinkedIn",
